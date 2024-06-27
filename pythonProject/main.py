@@ -25,6 +25,17 @@ def recognize_faces_and_log_shifts():
     inactivity_threshold = timedelta(seconds=10)  # Define inactivity threshold
     restart_threshold = timedelta(seconds=10)  # Define restart threshold after end time
 
+    # Custom labels for emotions
+    emotion_labels = {
+        "angry": "Upset",
+        "disgust": "Displeased",
+        "fear": "Scared",
+        "happy": "Joyful",
+        "sad": "Unhappy",
+        "surprise": "Teeccublu",
+        "neutral": "Calm"
+    }
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -63,8 +74,9 @@ def recognize_faces_and_log_shifts():
                 face_roi = frame[top:bottom, left:right]
                 try:
                     emotion_analysis = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
-                    emotion = emotion_analysis[0]['dominant_emotion']
-                    cv2.putText(frame, emotion, (left + 6, bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    dominant_emotion = emotion_analysis[0]['dominant_emotion']
+                    emotion_text = emotion_labels.get(dominant_emotion, dominant_emotion)
+                    cv2.putText(frame, emotion_text, (left + 6, bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 except Exception as e:
                     print(f"Emotion detection error: {e}")
 
