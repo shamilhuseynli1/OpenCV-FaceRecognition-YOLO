@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from Scripts.image_processing import load_images_and_encode_faces
 from Scripts.yolo import load_yolo_model, detect_phones
+from deepface import DeepFace
 
 def recognize_faces_and_log_shifts():
     faces_dir = 'Faces'
@@ -58,6 +59,15 @@ def recognize_faces_and_log_shifts():
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
                 cv2.putText(frame, name, (left + 6, top - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
+                # Analyze emotion
+                face_roi = frame[top:bottom, left:right]
+                try:
+                    emotion_analysis = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+                    emotion = emotion_analysis[0]['dominant_emotion']
+                    cv2.putText(frame, emotion, (left + 6, bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                except Exception as e:
+                    print(f"Emotion detection error: {e}")
+
         phone_boxes, indices = detect_phones(net, output_layers, classes, frame)
         phone_found = False
 
@@ -92,38 +102,6 @@ def recognize_faces_and_log_shifts():
 
     cap.release()
     cv2.destroyAllWindows()
-
-    # # Prepare data for saving to a file
-    # data = []
-    # for name, shifts in shift_log.items():
-    #     for i, times in enumerate(shifts):
-    #         end_time = times.get('end_time', times.get('last_seen') + inactivity_threshold)
-    #         total_time = end_time - times.get('start_time')
-    #         data.append({
-    #             'Name': name,
-    #             'Shift': i + 1,
-    #             'Start': times.get('start_time'),
-    #             'Last Seen': times.get('last_seen'),
-    #             'End': end_time,
-    #             'Total Logged Time': total_time
-    #         })
-    #
-    # # Get the directory of the current script
-    # script_dir = os.path.dirname(os.path.abspath(__file__))
-    #
-    # # Construct file paths
-    # csv_file_path = os.path.join(script_dir, 'shift_log.csv')
-    # excel_file_path = os.path.join(script_dir, 'shift_log.xlsx')
-    #
-    # # Save data to a CSV file
-    # df = pd.DataFrame(data)
-    # print(f"Saving CSV to: {csv_file_path}")
-    # df.to_csv(csv_file_path, index=False)
-    # print("CSV file saved successfully.")
-    #
-    # print(f"Saving Excel to: {excel_file_path}")
-    # df.to_excel(excel_file_path, index=False)
-    # print("Excel file saved successfully.")
 
 if __name__ == '__main__':
     recognize_faces_and_log_shifts()
