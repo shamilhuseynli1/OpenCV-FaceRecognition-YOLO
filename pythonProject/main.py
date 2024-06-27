@@ -4,8 +4,6 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from Scripts.image_processing import load_images_and_encode_faces
 from Scripts.yolo import load_yolo_model, detect_phones
-import numpy as np
-import pandas as pd
 
 def recognize_faces_and_log_shifts():
     faces_dir = 'Faces'
@@ -20,15 +18,16 @@ def recognize_faces_and_log_shifts():
     cap = cv2.VideoCapture(0)
     frame_count = 0
     process_frame_rate = 10
-    shift_log = defaultdict(dict)
-    inactivity_threshold = timedelta(seconds=6)
+    shift_log = defaultdict(list)
+    inactivity_threshold = timedelta(seconds=10)  # Define inactivity threshold
+    restart_threshold = timedelta(seconds=10)  # Define restart threshold after end time
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        current_time = datetime.now()
+        current_time = datetime.now()  # Get the current time at the start of each loop iteration
 
         if frame_count % process_frame_rate == 0:
             face_locations = face_recognition.face_locations(frame)
@@ -44,11 +43,16 @@ def recognize_faces_and_log_shifts():
 
                 # Log start time if not already logged
                 if name != "Unknown":
-                    if 'start_time' not in shift_log[name]:
-                        shift_log[name]['start_time'] = current_time
-                        print(f"{name} shift started at {current_time}")
-                    shift_log[name]['last_seen'] = current_time
+                    if not shift_log[name] or 'end_time' in shift_log[name][-1]:
+                        # Check if enough time has passed since the last shift ended
+                        if not shift_log[name] or current_time - shift_log[name][-1]['end_time'] > restart_threshold:
+                            shift_log[name].append({'start_time': current_time})
+                            print(f"{name} shift started at {current_time}")
+                    # Update last seen time whenever the face is detected
+                    if shift_log[name] and 'end_time' not in shift_log[name][-1]:
+                        shift_log[name][-1]['last_seen'] = current_time
 
+                # Draw rectangle around the face and label it
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
                 cv2.putText(frame, name, (left + 6, top - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
@@ -64,11 +68,12 @@ def recognize_faces_and_log_shifts():
                 phone_found = True
 
         # Check for inactivity and log end time
-        for name, times in list(shift_log.items()):
-            if 'last_seen' in times and current_time - times['last_seen'] > inactivity_threshold:
-                if 'end_time' not in times:
-                    shift_log[name]['end_time'] = current_time
-                    print(f"{name} shift ended at {current_time}")
+        for name, shifts in shift_log.items():
+            if shifts and 'last_seen' in shifts[-1] and 'end_time' not in shifts[-1]:
+                # Calculate the difference between current time and last seen time
+                if current_time - shifts[-1]['last_seen'] > inactivity_threshold:
+                    shifts[-1]['end_time'] = shifts[-1]['last_seen'] + inactivity_threshold  # Log the end time
+                    print(f"{name} shift ended at {shifts[-1]['end_time']}")
 
         cv2.imshow('Tracker', frame)
 
@@ -80,23 +85,16 @@ def recognize_faces_and_log_shifts():
     cap.release()
     cv2.destroyAllWindows()
 
-    # Prepare shift logs for saving
-    shift_data = []
-    for name, times in shift_log.items():
-        shift_data.append({
-            'Name': name,
-            'Start Time': times.get('start_time'),
-            'Last Seen': times.get('last_seen'),
-            'End Time': times.get('end_time', 'Still active')
-        })
-
-    # Create a DataFrame
-    df = pd.DataFrame(shift_data)
-
-    # Save the DataFrame to an Excel file
-    output_file = 'shift_logs.xlsx'
-    df.to_excel(output_file, index=False)
-    print(f"Shift logs saved to {output_file}")
+    # Print shift logs
+    for name, shifts in shift_log.items():
+        for i, times in enumerate(shifts):
+            print(f"Shift {i + 1} for {name}:")
+            print(f"  Start: {times.get('start_time')}")
+            print(f"  Last Seen: {times.get('last_seen')}")
+            end_time = times.get('end_time', times.get('last_seen') + inactivity_threshold)
+            print(f"  End: {end_time}")
+            total_time = end_time - times.get('start_time')
+            print(f"  Total logged time: {total_time}")
 
 if __name__ == '__main__':
     recognize_faces_and_log_shifts()
