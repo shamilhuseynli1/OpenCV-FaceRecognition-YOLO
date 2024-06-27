@@ -2,6 +2,8 @@ import cv2
 import face_recognition
 from datetime import datetime, timedelta
 from collections import defaultdict
+import pandas as pd
+import os
 from Scripts.image_processing import load_images_and_encode_faces
 from Scripts.yolo import load_yolo_model, detect_phones
 
@@ -75,6 +77,12 @@ def recognize_faces_and_log_shifts():
                     shifts[-1]['end_time'] = shifts[-1]['last_seen'] + inactivity_threshold  # Log the end time
                     print(f"{name} shift ended at {shifts[-1]['end_time']}")
 
+                    # Calculate total shift time
+                    start_time = shifts[-1]['start_time']
+                    end_time = shifts[-1]['end_time']
+                    total_time = end_time - start_time
+                    print(f"{name} total shift time was {total_time}")
+
         cv2.imshow('Tracker', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -85,16 +93,37 @@ def recognize_faces_and_log_shifts():
     cap.release()
     cv2.destroyAllWindows()
 
-    # Print shift logs
-    for name, shifts in shift_log.items():
-        for i, times in enumerate(shifts):
-            print(f"Shift {i + 1} for {name}:")
-            print(f"  Start: {times.get('start_time')}")
-            print(f"  Last Seen: {times.get('last_seen')}")
-            end_time = times.get('end_time', times.get('last_seen') + inactivity_threshold)
-            print(f"  End: {end_time}")
-            total_time = end_time - times.get('start_time')
-            print(f"  Total logged time: {total_time}")
+    # # Prepare data for saving to a file
+    # data = []
+    # for name, shifts in shift_log.items():
+    #     for i, times in enumerate(shifts):
+    #         end_time = times.get('end_time', times.get('last_seen') + inactivity_threshold)
+    #         total_time = end_time - times.get('start_time')
+    #         data.append({
+    #             'Name': name,
+    #             'Shift': i + 1,
+    #             'Start': times.get('start_time'),
+    #             'Last Seen': times.get('last_seen'),
+    #             'End': end_time,
+    #             'Total Logged Time': total_time
+    #         })
+    #
+    # # Get the directory of the current script
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    #
+    # # Construct file paths
+    # csv_file_path = os.path.join(script_dir, 'shift_log.csv')
+    # excel_file_path = os.path.join(script_dir, 'shift_log.xlsx')
+    #
+    # # Save data to a CSV file
+    # df = pd.DataFrame(data)
+    # print(f"Saving CSV to: {csv_file_path}")
+    # df.to_csv(csv_file_path, index=False)
+    # print("CSV file saved successfully.")
+    #
+    # print(f"Saving Excel to: {excel_file_path}")
+    # df.to_excel(excel_file_path, index=False)
+    # print("Excel file saved successfully.")
 
 if __name__ == '__main__':
     recognize_faces_and_log_shifts()
