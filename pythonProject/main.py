@@ -81,6 +81,13 @@ def recognize_faces_and_log_shifts():
                 cv2.putText(frame, "Phone", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
                 phone_found = True
 
+                # Check if phone is within any face boundary
+                for name, info in last_detected_faces.items():
+                    top, right, bottom, left = info['location']
+                    if x >= left and x + w <= right and y >= top and y + h <= bottom:
+                        print(f"{name} is using a phone at {current_time}")
+                        break
+
         # Check for inactivity and log end time
         for name, shifts in shift_log.items():
             if shifts and 'last_seen' in shifts[-1] and 'end_time' not in shifts[-1]:
@@ -100,9 +107,9 @@ def recognize_faces_and_log_shifts():
 
                 # Draw rectangle around the face and label it
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-                cv2.putText(frame, name, (left + 6, top - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(frame, name, (left + 6, top - 6), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
                 if emotion_text:
-                    cv2.putText(frame, emotion_text, (left + 6, bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.putText(frame, emotion_text, (left + 6, bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
         cv2.imshow('Tracker', frame)
 
