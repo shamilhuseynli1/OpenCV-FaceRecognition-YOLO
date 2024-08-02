@@ -30,6 +30,10 @@ def recognize_faces_and_log_shifts():
     last_detected_faces = {}  # Store last detected faces and their details
     emotion_analysis_results = {}  # Store results of emotion analysis
 
+    # Parameters for adjusting phone detection boundary
+    phone_boundary_scale = 1.2  # Scale factor to increase the phone boundary
+    min_phone_width = 50  # Minimum width for a detected phone box to be considered valid
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -84,9 +88,16 @@ def recognize_faces_and_log_shifts():
                 # Check if phone is within any face boundary
                 for name, info in last_detected_faces.items():
                     top, right, bottom, left = info['location']
-                    if x >= left and x + w <= right and y >= top and y + h <= bottom:
-                        print(f"{name} is using a phone at {current_time}")
-                        break
+                    # Expand the face boundary to include more area around the face
+                    expanded_left = left - int((w * phone_boundary_scale - w) / 2)
+                    expanded_right = right + int((w * phone_boundary_scale - w) / 2)
+                    expanded_top = top - int((h * phone_boundary_scale - h) / 2)
+                    expanded_bottom = bottom + int((h * phone_boundary_scale - h) / 2)
+
+                    if x >= expanded_left and x + w <= expanded_right and y >= expanded_top and y + h <= expanded_bottom:
+                        if current_time - info['time'] < label_duration:  # Ensure not to log repeatedly in a short time
+                            print(f"{name} is using a phone at {current_time}")
+                            break
 
         # Check for inactivity and log end time
         for name, shifts in shift_log.items():
